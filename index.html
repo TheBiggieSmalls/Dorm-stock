@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Dorm Stock</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#111111">
+<meta name="application-name" content="Dorm Stock">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Dorm Stock">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
 :root{
   --bg:#f3f1ec;--card:#fff;--ink:#111;--mute:#6b6b66;--line:#dcd9d0;--tile:#efece4;
@@ -321,6 +329,11 @@ input,select{width:100%;padding:14px;border-radius:14px;border:1.5px solid var(-
   };
   render();
 })();
+</script>
+<script>
+if("serviceWorker" in navigator && /^https?:/.test(location.protocol)){
+  window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){});});
+}
 </script>
 </body>
 </html>
