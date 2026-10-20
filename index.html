@@ -100,6 +100,11 @@ input,select{width:100%;padding:14px;border-radius:14px;border:1.5px solid var(-
 .icogrid button{height:44px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font-size:22px;padding:0}
 .icogrid button[data-i=""]{font-size:12px;font-weight:700}
 .sheet{max-height:92vh;overflow-y:auto}
+.mrow.dg b{color:var(--warn)}
+.minfo{margin:14px 0 0;padding-top:12px;border-top:1.5px solid var(--line);color:var(--mute);font-size:13px;line-height:1.5}.minfo b{color:var(--ink)}
+.tip{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 96px);z-index:15;max-width:536px;margin:0 auto;background:var(--ink);color:var(--bg);border-radius:20px;padding:14px 14px 12px;box-shadow:0 10px 30px rgba(0,0,0,.35);display:none}
+.tip.open{display:block}.tip b{display:block;font-size:15px;margin-bottom:4px}.tip p{margin:0 0 10px;font-size:13px;line-height:1.4;opacity:.85}
+.tip .ta{display:flex;gap:8px}.tip button{flex:1;padding:11px;border-radius:12px;border:0;font:700 14px inherit;font-family:inherit}.tip .ok{background:var(--bg);color:var(--ink)}.tip .inst{background:var(--accent);color:#fff}
 .foot{display:flex;justify-content:space-between;color:var(--mute);font-size:12px;margin-top:18px}
 .foot button{background:none;border:0;color:var(--mute);font:inherit;text-decoration:underline;padding:8px}
 </style>
@@ -117,10 +122,11 @@ input,select{width:100%;padding:14px;border-radius:14px;border:1.5px solid var(-
   <div class="spines" id="spines"></div>
   <div class="toggle"><button id="vAll" class="on">All items</button><button id="vBring">Need to bring</button></div>
   <div id="list"></div>
-  <div class="foot"><span id="saved">Saved on this phone</span><button id="reset">Reset</button></div>
+  <div class="foot"><span id="saved">Saved on this phone</span></div>
 </div>
 <button class="fab" id="fab" aria-label="Add item">+</button>
 
+<div class="tip" id="tip"><b>Install Dorm Stock</b><p id="tipTxt"></p><div class="ta"><button class="inst" id="tipInst" hidden>Install</button><button class="ok" id="tipOk">Got it</button></div></div>
 <div class="scrim" id="scrim2">
   <div class="sheet">
     <h2>Menu</h2>
@@ -131,7 +137,9 @@ input,select{width:100%;padding:14px;border-radius:14px;border:1.5px solid var(-
     <textarea id="mText" hidden></textarea>
     <button class="mrow" id="mCopy" hidden><b>Copy backup text</b><small>Then paste it into a note or message to yourself</small></button>
     <button class="mrow" id="mDoPaste" hidden><b>Import this text</b></button>
+    <button class="mrow dg" id="reset"><b>Reset list</b><small>Back to the starter items</small></button>
     <p class="mmsg" id="mMsg"></p>
+    <p class="minfo"><b>Install it as an app.</b> In Chrome, open the ⋮ menu and tap Install app. In Safari, tap Share, then Add to Home Screen.<br><b>Works offline.</b> Once it has loaded one time, it opens without internet, installed or not.</p>
   </div>
 </div>
 <div class="scrim" id="scrim">
@@ -322,11 +330,25 @@ input,select{width:100%;padding:14px;border-radius:14px;border:1.5px solid var(-
     st.items=st.items.filter(function(x){return x!==st.edit;});
     closeSheet();commit();
   };
-  var armed=false;
+  var armed=false,rt=null;
   $("reset").onclick=function(){
-    if(!armed){armed=true;$("reset").textContent="Tap again to reset all";setTimeout(function(){armed=false;$("reset").textContent="Reset";},3000);return;}
-    st.items=seed();armed=false;$("reset").textContent="Reset";commit();
+    var sm=$("reset").querySelector("small");
+    if(!armed){armed=true;sm.textContent="Tap again to confirm";rt=setTimeout(function(){armed=false;sm.textContent="Back to the starter items";},3000);return;}
+    clearTimeout(rt);armed=false;sm.textContent="Back to the starter items";st.items=seed();commit();msg("List reset.");
   };
+var deferred=null;
+  window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferred=e;if($('tip').classList.contains('open'))$('tipInst').hidden=false;});
+  var ios=/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  var standalone=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
+  var TIPKEY='dormstock.tip';
+  function tipSeen(){try{return !!localStorage.getItem(TIPKEY);}catch(e){return false;}}
+  function tipMark(){try{localStorage.setItem(TIPKEY,'1');}catch(e){}}
+  if(/^https?:/.test(location.protocol)&&!standalone&&!tipSeen()){
+    $('tipTxt').textContent=ios?'In Safari, tap the Share button and choose Add to Home Screen. It then works like an app, even offline.':'In Chrome, tap the ⋮ menu and choose Install app. It then works like an app, even offline.';
+    setTimeout(function(){$('tip').classList.add('open');$('tipInst').hidden=!deferred;tipMark();},900);
+  }
+  $('tipOk').onclick=function(){$('tip').classList.remove('open');};
+  $('tipInst').onclick=function(){if(!deferred)return;deferred.prompt();deferred.userChoice.then(function(){deferred=null;$('tip').classList.remove('open');});};
   render();
 })();
 </script>
