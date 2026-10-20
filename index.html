@@ -101,6 +101,7 @@ input,select{width:100%;padding:14px;border-radius:14px;border:1.5px solid var(-
 .icogrid button[data-i=""]{font-size:12px;font-weight:700}
 .sheet{max-height:92vh;overflow-y:auto}
 .mrow.dg b{color:var(--warn)}
+.mhead{display:flex;align-items:center;gap:10px;margin-bottom:4px}.mhead h2{margin:0}.mhead button{width:44px;height:44px;border-radius:14px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font-size:26px;line-height:1;padding:0}
 .minfo{margin:14px 0 0;padding-top:12px;border-top:1.5px solid var(--line);color:var(--mute);font-size:13px;line-height:1.5}.minfo b{color:var(--ink)}
 .tip{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 96px);z-index:15;max-width:536px;margin:0 auto;background:var(--ink);color:var(--bg);border-radius:20px;padding:14px 14px 12px;box-shadow:0 10px 30px rgba(0,0,0,.35);display:none}
 .tip.open{display:block}.tip b{display:block;font-size:15px;margin-bottom:4px}.tip p{margin:0 0 10px;font-size:13px;line-height:1.4;opacity:.85}
@@ -129,17 +130,25 @@ input,select{width:100%;padding:14px;border-radius:14px;border:1.5px solid var(-
 <div class="tip" id="tip"><b>Install Dorm Stock</b><p id="tipTxt"></p><div class="ta"><button class="inst" id="tipInst" hidden>Install</button><button class="ok" id="tipOk">Got it</button></div></div>
 <div class="scrim" id="scrim2">
   <div class="sheet">
-    <h2>Menu</h2>
-    <button class="mrow" id="mExport"><b>Export backup</b><small>Save your whole list as a file</small></button>
-    <button class="mrow" id="mImport"><b>Import backup</b><small>Replaces your list with the saved one</small></button>
-    <button class="mrow" id="mPaste"><b>Import from pasted text</b><small>Paste a copied backup (replaces your list)</small></button>
-    <input type="file" id="mFile" accept=".json,application/json,text/plain" hidden>
-    <textarea id="mText" hidden></textarea>
-    <button class="mrow" id="mCopy" hidden><b>Copy backup text</b><small>Then paste it into a note or message to yourself</small></button>
-    <button class="mrow" id="mDoPaste" hidden><b>Import this text</b></button>
-    <button class="mrow dg" id="reset"><b>Reset list</b><small>Back to the starter items</small></button>
-    <p class="mmsg" id="mMsg"></p>
-    <p class="minfo"><b>Install it as an app.</b> In Chrome, open the ⋮ menu and tap Install app. In Safari, tap Share, then Add to Home Screen.<br><b>Works offline.</b> Once it has loaded one time, it opens without internet, installed or not.</p>
+    <div id="mMain">
+      <h2>Menu</h2>
+      <button class="mrow" id="mBackup"><b>Backup</b><small>Export or import your list</small></button>
+      <button class="mrow dg" id="reset"><b>Reset list</b><small>Back to the starter items</small></button>
+      <p class="minfo"><b>Install it as an app.</b> In Chrome, open the ⋮ menu and tap Install app. In Safari, tap Share, then Add to Home Screen.<br><b>Works offline.</b> Once it has loaded one time, it opens without internet, installed or not.</p>
+    </div>
+    <div id="mBk" hidden>
+      <div class="mhead"><button id="mBack" aria-label="Back">‹</button><h2>Backup</h2></div>
+      <label>Export</label>
+      <button class="mrow" id="mDl"><b>Download file</b><small>Save your list as a .json file</small></button>
+      <button class="mrow" id="mCp"><b>Copy as text</b><small>Paste it into a note to keep it safe</small></button>
+      <label>Import (replaces your list)</label>
+      <button class="mrow" id="mImport"><b>From file</b><small>Choose a saved .json file</small></button>
+      <button class="mrow" id="mPaste"><b>Paste text</b><small>Paste a copied backup</small></button>
+      <input type="file" id="mFile" accept=".json,application/json,text/plain" hidden>
+      <textarea id="mText" hidden></textarea>
+      <button class="mrow" id="mDoPaste" hidden><b>Import this text</b></button>
+      <p class="mmsg" id="mMsg"></p>
+    </div>
   </div>
 </div>
 <div class="scrim" id="scrim">
@@ -276,20 +285,30 @@ input,select{width:100%;padding:14px;border-radius:14px;border:1.5px solid var(-
   function ih(ic){return ic==='@towel'?TOWEL:ic;}
   function updateIco(){$("icoBtn").innerHTML=ih(st.ico||auto($("fName").value,$("fCat").value));}
   function msg(t){$('mMsg').textContent=t;}
-  $('burger').onclick=function(){msg('');$('mText').hidden=true;$('mCopy').hidden=true;$('mDoPaste').hidden=true;$('scrim2').classList.add('open');};
+  function pane(b){$('mMain').hidden=b;$('mBk').hidden=!b;msg('');$('mText').hidden=true;$('mDoPaste').hidden=true;}
+  $('burger').onclick=function(){pane(false);$('scrim2').classList.add('open');};
+  $('mBackup').onclick=function(){pane(true);};
+  $('mBack').onclick=function(){pane(false);};
   $('scrim2').addEventListener('click',function(e){if(e.target===$('scrim2'))$('scrim2').classList.remove('open');});
-  $('mExport').onclick=async function(){
-    var json=JSON.stringify({app:'dormstock',v:1,items:st.items},null,2),d=new Date().toISOString().slice(0,10);
+  function jsonOut(){return JSON.stringify({app:'dormstock',v:1,items:st.items},null,2);}
+  function fname(){return 'dorm-stock-'+new Date().toISOString().slice(0,10)+'.json';}
+  $('mDl').onclick=async function(){
+    var json=jsonOut(),fn=fname();
     try{
       var dl=(typeof claude!=='undefined'&&claude.use)?await claude.use('downloads'):null;
-      if(dl){await dl.save({filename:'dorm-stock-'+d+'.json',data:new Blob([json],{type:'application/json'})});msg('Backup ready.');return;}
-    }catch(e){if(e&&e.code==='declined'){msg('Cancelled.');return;}var code=(e&&(e.code||e.message))||'error';}
-    if(!dl){try{var u=URL.createObjectURL(new Blob([json],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download='dorm-stock-'+d+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u);},4000);$('mText').value=json;$('mText').hidden=true;$('mDoPaste').hidden=true;$('mCopy').hidden=false;msg('Download started. Nothing appeared? Use the copy button.');return;}catch(x){}}
-    try{var fl=new File([json],'dorm-stock-'+d+'.json',{type:'application/json'});if(navigator.canShare&&navigator.canShare({files:[fl]})){await navigator.share({files:[fl],title:'Dorm Stock backup'});msg('Backup shared.');return;}}catch(x){if(x&&x.name==='AbortError'){msg('Cancelled.');return;}}
-    var ta=$('mText');ta.hidden=false;ta.value=json;$('mCopy').hidden=false;
-    msg('Could not save a file here'+(code?' ('+code+')':'')+'. Use the copy button instead.');
+      if(dl){await dl.save({filename:fn,data:new Blob([json],{type:'application/json'})});msg('Backup ready.');return;}
+    }catch(e){if(e&&e.code==='declined'){msg('Cancelled.');return;}}
+    try{var u=URL.createObjectURL(new Blob([json],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download=fn;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u);},4000);msg('Download started. Nothing appeared? Use Copy as text.');return;}catch(x){}
+    try{var fl=new File([json],fn,{type:'application/json'});if(navigator.canShare&&navigator.canShare({files:[fl]})){await navigator.share({files:[fl],title:'Dorm Stock backup'});msg('Backup shared.');return;}}catch(x){if(x&&x.name==='AbortError'){msg('Cancelled.');return;}}
+    msg('Download is not available here. Use Copy as text.');
   };
-  $('mCopy').onclick=async function(){var ta=$('mText');try{await navigator.clipboard.writeText(ta.value);msg('Copied. Paste it somewhere safe, like a note.');}catch(e){ta.hidden=false;ta.focus();ta.select();var ok=false;try{ok=document.execCommand('copy');}catch(x){}msg(ok?'Copied. Paste it somewhere safe, like a note.':'Copy blocked. Long-press the text, then Select all and Copy.');}};
+  $('mCp').onclick=async function(){
+    var json=jsonOut(),ta=$('mText');
+    try{await navigator.clipboard.writeText(json);ta.hidden=true;$('mDoPaste').hidden=true;msg('Copied. Paste it somewhere safe, like a note.');return;}catch(e){}
+    ta.hidden=false;ta.value=json;$('mDoPaste').hidden=true;ta.focus();ta.select();
+    var ok=false;try{ok=document.execCommand('copy');}catch(x){}
+    msg(ok?'Copied. Paste it somewhere safe, like a note.':'Select all in the box and copy it by hand.');
+  };
   function importText(txt){
     var d;try{d=JSON.parse(txt);}catch(e){msg('That is not a valid backup.');return;}
     var arr=Array.isArray(d)?d:(d&&d.items);
@@ -307,7 +326,7 @@ input,select{width:100%;padding:14px;border-radius:14px;border:1.5px solid var(-
     commit();msg('Imported '+n+' item'+(n===1?'':'s')+'.');
   }
   $('mImport').onclick=function(){$('mFile').click();};
-  $('mPaste').onclick=function(){var ta=$('mText');ta.hidden=false;ta.value='';ta.placeholder='Paste backup text here';$('mCopy').hidden=true;$('mDoPaste').hidden=false;msg('');ta.focus();};
+  $('mPaste').onclick=function(){var ta=$('mText');ta.hidden=false;ta.value='';ta.placeholder='Paste backup text here';$('mDoPaste').hidden=false;msg('');ta.focus();};
   $('mDoPaste').onclick=function(){var v=$('mText').value.trim();if(!v){msg('Paste the backup text first.');return;}importText(v);};
   $('mFile').onchange=function(){var f=this.files&&this.files[0];if(!f)return;var r=new FileReader();r.onload=function(){importText(String(r.result));};r.onerror=function(){msg('Could not read that file.');};r.readAsText(f);this.value='';};
   function closeGrid(){$("icoGrid").classList.remove("open");}
@@ -334,7 +353,7 @@ input,select{width:100%;padding:14px;border-radius:14px;border:1.5px solid var(-
   $("reset").onclick=function(){
     var sm=$("reset").querySelector("small");
     if(!armed){armed=true;sm.textContent="Tap again to confirm";rt=setTimeout(function(){armed=false;sm.textContent="Back to the starter items";},3000);return;}
-    clearTimeout(rt);armed=false;sm.textContent="Back to the starter items";st.items=seed();commit();msg("List reset.");
+    clearTimeout(rt);armed=false;sm.textContent="Back to the starter items";st.items=seed();commit();sm.textContent="List reset";setTimeout(function(){sm.textContent="Back to the starter items";},2000);
   };
 var deferred=null;
   window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferred=e;if($('tip').classList.contains('open'))$('tipInst').hidden=false;});
