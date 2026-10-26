@@ -106,6 +106,16 @@ input,select{width:100%;padding:14px;border-radius:14px;border:1.5px solid var(-
 .tip{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 96px);z-index:15;max-width:536px;margin:0 auto;background:var(--ink);color:var(--bg);border-radius:20px;padding:14px 14px 12px;box-shadow:0 10px 30px rgba(0,0,0,.35);display:none}
 .tip.open{display:block}.tip b{display:block;font-size:15px;margin-bottom:4px}.tip p{margin:0 0 10px;font-size:13px;line-height:1.4;opacity:.85}
 .tip .ta{display:flex;gap:8px}.tip button{flex:1;padding:11px;border-radius:12px;border:0;font:700 14px inherit;font-family:inherit}.tip .ok{background:var(--bg);color:var(--ink)}.tip .inst{background:var(--accent);color:#fff}
+.toggle button+button{border-left:1.5px solid var(--mute)}
+.toggle button{padding:12px 4px;letter-spacing:.03em;font-size:12.5px}
+.oadd{display:flex;gap:8px;margin-bottom:12px}.oadd input{flex:1;min-width:0}.oadd button{flex:none;padding:0 18px;border-radius:14px;border:0;background:var(--ink);color:var(--bg);font-weight:700;font-size:15px}
+.orow{display:flex;align-items:center;gap:12px;background:var(--card);border:1.5px solid var(--line);border-radius:18px;padding:8px 8px 8px 12px;margin-bottom:8px;min-height:60px;cursor:pointer}
+.ock{flex:none;width:34px;height:34px;border-radius:50%;border:2px solid var(--ink);background:transparent;color:#fff;font-size:18px;font-weight:700;padding:0;pointer-events:none}
+.orow.done .ock{background:var(--ok);border-color:var(--ok)}
+.ot{flex:1;font-size:17px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.orow.done .ot{text-decoration:line-through;color:var(--mute)}
+.ox{flex:none;width:44px;height:44px;border:0;background:transparent;color:var(--mute);font-size:16px}
+.oclear{width:100%;margin-top:6px;min-height:48px;border-radius:14px;border:1.5px dashed var(--line);background:transparent;color:var(--mute);font-weight:600}
 .foot{display:flex;justify-content:space-between;color:var(--mute);font-size:12px;margin-top:18px}
 .foot button{background:none;border:0;color:var(--mute);font:inherit;text-decoration:underline;padding:8px}
 </style>
@@ -121,7 +131,7 @@ input,select{width:100%;padding:14px;border-radius:14px;border:1.5px solid var(-
   </div>
   <div class="bar"><i id="bar"></i></div>
   <div class="spines" id="spines"></div>
-  <div class="toggle"><button id="vAll" class="on">All items</button><button id="vBring">Need to bring</button></div>
+  <div class="toggle"><button id="vAll" class="on">All items</button><button id="vBring">Need to bring</button><button id="vOnce">Just once</button></div>
   <div id="list"></div>
   <div class="foot"><span id="saved">Saved on this phone</span></div>
 </div>
@@ -202,11 +212,13 @@ input,select{width:100%;padding:14px;border-radius:14px;border:1.5px solid var(-
   function auto(name,cat){var n=name.toLowerCase();for(var i=0;i<ICONS.length;i++)if(new RegExp("\\b(?:"+ICONS[i][0].source+")").test(n))return ICONS[i][1];return CATICON[cat]||"📦";}
   function icon(it){return it.icon||auto(it.name,it.cat);}
   function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
-  function seed(){return [["Trousers","Clothes",8],["Wifebeaters","Clothes",8],["T-shirts","Clothes",8],["Socks","Clothes",10],["Underwear","Clothes",10],["Pasta","Food",3],["Toothpaste","Toiletries",1]].map(function(a){return{id:uid(),name:a[0],cat:a[1],need:a[2],have:0};});}
+  function seed(){return [["Trousers","Clothes",8],["Undershirts","Clothes",8],["T-shirts","Clothes",8],["Socks","Clothes",10],["Underwear","Clothes",10],["Pasta","Food",3],["Toothpaste","Toiletries",1]].map(function(a){return{id:uid(),name:a[0],cat:a[1],need:a[2],have:0};});}
   var st={items:null,cat:"All",view:"all",edit:null};
   function load(){try{var r=localStorage.getItem(KEY);if(r){var d=JSON.parse(r);if(d&&Array.isArray(d.items))return d.items;}}catch(e){}return null;}
-  function save(){try{localStorage.setItem(KEY,JSON.stringify({items:st.items}));}catch(e){}}
-  st.items=load()||seed();
+  function save(){try{localStorage.setItem(KEY,JSON.stringify({items:st.items,once:st.once}));}catch(e){}}
+  function loadOnce(){try{var r=JSON.parse(localStorage.getItem(KEY));if(r&&Array.isArray(r.once))return r.once.filter(function(x){return x&&typeof x.name==='string';});}catch(e){}return [];}
+  st.items=load()||seed();st.once=loadOnce();
+  st.items.forEach(function(i){if(/^wifebeaters?$/i.test(String(i.name).trim()))i.name="Undershirts";});
   var $=function(i){return document.getElementById(i);};
   function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
   function buzz(){try{navigator.vibrate&&navigator.vibrate(8);}catch(e){}}
@@ -218,7 +230,10 @@ input,select{width:100%;padding:14px;border-radius:14px;border:1.5px solid var(-
     $("bar").style.width=(total?done/total*100:0)+"%";
     var sp=["All"].concat(cats());
     $("spines").innerHTML=sp.map(function(c){return '<button class="spine'+(st.cat===c?' on':'')+'" data-c="'+esc(c)+'">'+esc(c)+'</button>';}).join("");
-    $("vAll").className=st.view==="all"?"on":""; $("vBring").className=st.view==="bring"?"on":"";
+    $("vAll").className=st.view==="all"?"on":""; $("vBring").className=st.view==="bring"?"on":""; $("vOnce").className=st.view==="once"?"on":"";
+    var pend=st.once.filter(function(x){return !x.done;}).length;$("vOnce").textContent="Just once"+(pend?" ("+pend+")":"");
+    $("spines").style.display=st.view==="once"?"none":"";
+    if(st.view==="once"){renderOnce();return;}
     var list=all.filter(function(i){return (st.cat==="All"||i.cat===st.cat)&&(st.view==="all"||i.have<i.need);});
     if(!list.length){
       $("list").innerHTML='<div class="empty">'+(st.view==="bring"&&total?"Nothing left to bring. 🎉":"No items yet. Tap + to add one.")+'</div>';
@@ -264,6 +279,25 @@ input,select{width:100%;padding:14px;border-radius:14px;border:1.5px solid var(-
   $("spines").addEventListener("click",function(e){var b=e.target.closest("[data-c]");if(b){st.cat=b.dataset.c;render();}});
   $("vAll").onclick=function(){st.view="all";render();};
   $("vBring").onclick=function(){st.view="bring";render();};
+  $("vOnce").onclick=function(){st.view="once";render();};
+  function renderOnce(){
+    var o=st.once.slice().sort(function(a,b){return (a.done?1:0)-(b.done?1:0);}),n=o.filter(function(x){return x.done;}).length;
+    $("list").innerHTML='<div class="oadd"><input id="oIn" placeholder="Something to take along once…" maxlength="40" autocomplete="off" enterkeyhint="done"><button id="oBtn">Add</button></div>'+
+      (o.length?o.map(function(x){return '<div class="orow'+(x.done?' done':'')+'" data-oa="tog" data-oid="'+x.id+'"><button class="ock" tabindex="-1" aria-hidden="true">'+(x.done?'✓':'')+'</button><span class="ot">'+ih(icon({name:x.name,cat:"Other"}))+' '+esc(x.name)+'</span><button class="ox" data-oa="del" aria-label="Remove">✕</button></div>';}).join(""):'<div class="empty">Nothing here yet. Add things you only need to take along once, like a vacuum cleaner.</div>')+
+      (n?'<button class="oclear" data-oa="clr">Clear packed ('+n+')</button>':'');
+  }
+  function addOnce(){var i=$("oIn"),v=i&&i.value.trim();if(!v)return;st.once.unshift({id:uid(),name:v.slice(0,40),done:false});commit();var n=$("oIn");if(n)n.focus();}
+  $("list").addEventListener("click",function(e){
+    var b=e.target.closest("[data-oa],#oBtn");if(!b)return;
+    if(b.id==="oBtn"){addOnce();return;}
+    var a=b.dataset.oa,row=b.closest(".orow"),it=row&&st.once.find(function(x){return x.id===row.dataset.oid;});
+    if(a==="clr")st.once=st.once.filter(function(x){return !x.done;});
+    else if(!it)return;
+    else if(a==="tog"){it.done=!it.done;buzz();}
+    else if(a==="del")st.once=st.once.filter(function(x){return x!==it;});
+    commit();
+  });
+  $("list").addEventListener("keydown",function(e){if(e.key==="Enter"&&e.target.id==="oIn")addOnce();});
   function num(v){var n=parseInt(v,10);return isNaN(n)||n<0?0:n;}
   function openSheet(it){
     st.edit=it||null;
@@ -290,7 +324,7 @@ input,select{width:100%;padding:14px;border-radius:14px;border:1.5px solid var(-
   $('mBackup').onclick=function(){pane(true);};
   $('mBack').onclick=function(){pane(false);};
   $('scrim2').addEventListener('click',function(e){if(e.target===$('scrim2'))$('scrim2').classList.remove('open');});
-  function jsonOut(){return JSON.stringify({app:'dormstock',v:1,items:st.items},null,2);}
+  function jsonOut(){return JSON.stringify({app:'dormstock',v:2,items:st.items,once:st.once},null,2);}
   function fname(){return 'dorm-stock-'+new Date().toISOString().slice(0,10)+'.json';}
   $('mDl').onclick=async function(){
     var json=jsonOut(),fn=fname();
@@ -323,6 +357,7 @@ input,select{width:100%;padding:14px;border-radius:14px;border:1.5px solid var(-
       n++;
     });
     if(!n){st.items=old;msg('No valid items found, nothing changed.');return;}
+    if(d&&Array.isArray(d.once))st.once=d.once.filter(function(x){return x&&typeof x.name==='string'&&x.name.trim();}).map(function(x){return{id:(typeof x.id==='string'&&x.id)?x.id:uid(),name:x.name.trim().slice(0,40),done:!!x.done};});
     commit();msg('Imported '+n+' item'+(n===1?'':'s')+'.');
   }
   $('mImport').onclick=function(){$('mFile').click();};
@@ -334,7 +369,7 @@ input,select{width:100%;padding:14px;border-radius:14px;border:1.5px solid var(-
     g.innerHTML='<button data-i="">Auto</button>'+ICONLIST.map(function(x){return '<button data-i="'+x+'">'+ih(x)+'</button>';}).join("");g.classList.add("open");};
   $("icoGrid").onclick=function(e){var b=e.target.closest("button");if(!b)return;st.ico=b.dataset.i||null;updateIco();closeGrid();};
   $("fName").addEventListener("input",updateIco);$("fCat").addEventListener("change",updateIco);
-  $("fab").onclick=function(){openSheet(null);};
+  $("fab").onclick=function(){if(st.view==="once"){var i=$("oIn");if(i){window.scrollTo(0,0);i.focus();}return;}openSheet(null);};
   $("fCancel").onclick=closeSheet;
   $("scrim").addEventListener("click",function(e){if(e.target===$("scrim"))closeSheet();});
   document.querySelectorAll(".step button").forEach(function(b){b.onclick=function(){var f=b.dataset.t==="need"?$("fNeed"):$("fHave");f.value=Math.max(0,num(f.value)+parseInt(b.dataset.d,10));};});
